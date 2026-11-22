@@ -633,6 +633,58 @@ await check('store: recorded verification is readable back per project', async (
   )
 })
 
+await check('writeDoc 并发写同一 base_hash 时只有一个成功', async () => {
+  // The CAS used to be check-then-act: two writers that both read revision N
+  // passed the comparison before either wrote, and the second silently replaced
+  // the first — one side's edit lost with no error. The per-document lock makes
+  // the read-compare-write atomic, so exactly one writer may proceed and the
+  // loser must get `doc_conflict`.
+  await store.createProject(root, { id: 'race-proj', title: 'Race', root: '/tmp/race' })
+  const docName = 'RACE.md'
+  const base = await store.writeDoc(root, 'race-proj', 'project', docName, 'v0', undefined)
+  const writers = ['w1', 'w2', 'w3', 'w4', 'w5']
+  const results = await Promise.allSettled(
+    writers.map((author) =>
+      store.writeDoc(root, 'race-proj', 'project', docName, `from ${author}`, base.hash),
+    ),
+  )
+  const ok = results.filter((item) => item.status === 'fulfilled')
+  const rejected = results.filter((item) => item.status === 'rejected')
+  assert.equal(ok.length, 1, `应只有一个写入成功，实际 ${ok.length}`)
+  assert.equal(rejected.length, writers.length - 1)
+  for (const item of rejected) {
+    const code = item.reason?.code
+    assert.ok(
+      code === 'doc_conflict' || code === 'doc_locked',
+      `失败的写入只应是冲突或锁，实际是 ${code}: ${item.reason?.message}`,
+    )
+  }
+  const finalDoc = await store.readDoc(root, 'race-proj', 'project', docName)
+  assert.match(finalDoc.content, /^from w[1-5]$/, `内容被撕裂：${JSON.stringify(finalDoc.content)}`)
+  await assert.doesNotReject(
+    () => store.writeDoc(root, 'race-proj', 'project', docName, 'after race', finalDoc.hash),
+    '锁未释放',
+  )
+})
+
+await check('writeDoc 的锁不阻塞其它文档', async () => {
+  // A per-library lock would serialise unrelated documents; this lock is per
+  // file precisely so two agents editing different documents never wait.
+  const start = Date.now()
+  await Promise.all([
+    store.writeDoc(root, 'race-proj', 'project', 'A.md', 'a', undefined),
+    store.writeDoc(root, 'race-proj', 'project', 'B.md', 'b', undefined),
+    store.writeDoc(root, 'race-proj', 'project', 'C.md', 'c', undefined),
+    store.writeDoc(root, 'race-proj', 'project', 'D.md', 'd', undefined),
+  ])
+  const elapsed = Date.now() - start
+  assert.ok(elapsed < 3000, `四个不同文档并发写用了 ${elapsed}ms，锁粒度可能过粗`)
+  for (const name of ['A.md', 'B.md', 'C.md', 'D.md']) {
+    const doc = await store.readDoc(root, 'race-proj', 'project', name)
+    assert.equal(doc.content, name[0].toLowerCase())
+  }
+})
+
 await fs.rm(root, { recursive: true, force: true })
 
 for (const name of passed) console.log(`PASS ${name}`)

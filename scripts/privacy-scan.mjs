@@ -28,6 +28,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const TEXT_EXT = /\.(?:js|mjs|cjs|json|yml|yaml|md|svg|txt|html|css|env|ini|conf)$/
 
@@ -500,8 +501,39 @@ function scanFile(file, allow) {
   return findings.filter((finding) => !allow.some((re) => re.test(finding.context)))
 }
 
-const isMain = process.argv[1] !== undefined
-  && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
+/**
+ * Are we the entry point, or being imported by a test / another module?
+ *
+ * WHY NOT `new URL(import.meta.url).pathname`
+ * ------------------------------------------
+ * `.pathname` is a *URL* path, not a filesystem path: it keeps percent-encoding
+ * and uses forward slashes. On Windows that means
+ *
+ *   file:///C:/Users/ADMINI~1/Temp/a%20b/privacy-scan.mjs
+ *     .pathname      → "C:/Users/ADMINI~1/Temp/a%20b/privacy-scan.mjs"
+ *     fileURLToPath  → "C:\\Users\\ADMINI~1\\Temp\\a b\\privacy-scan.mjs"
+ *
+ * so `path.resolve(process.argv[1]) === path.resolve(pathname)` is false under
+ * any path containing `~`, a space, or other escaped characters. The failure is
+ * silent and dangerous: the script does not run, prints nothing, and exits 0 —
+ * `npm run privacy` and `prepublishOnly` would report success while scanning
+ * zero files. A guard script that lies about having checked is worse than no
+ * guard script.
+ */
+const isMain = (() => {
+  const entry = process.argv[1]
+  if (entry === undefined || entry === '') return false
+  try {
+    const selfPath = fileURLToPath(import.meta.url)
+    // Compare case-insensitively: Windows paths are case-preserving but not
+    // case-sensitive, and the shell may hand us a different casing than the URL.
+    return process.platform === 'win32'
+      ? path.resolve(entry).toLowerCase() === path.resolve(selfPath).toLowerCase()
+      : path.resolve(entry) === path.resolve(selfPath)
+  } catch {
+    return false
+  }
+})()
 
 if (isMain) {
   const options = parseArgs(process.argv.slice(2))
