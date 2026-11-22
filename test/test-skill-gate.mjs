@@ -181,6 +181,33 @@ test('纯新增测试文件不算削弱', () => {
   assert.equal(weakensTest('', content).weakened, false)
 })
 
+test('纯新增测试文件：带 process.exit 结尾也不算削弱', () => {
+  // 真实事故（2026-11-22）：本仓库每套测试都以 `process.exit(failed > 0 ? 1 : 0)`
+  // 收尾，而 `xit(` 原本没有词边界 —— `exit(` 的末尾就含 `xit(` —— 于是每一个
+  // 新建的测试文件都被判成「跳过了测试」，新建测试 = 必然违规。这是死锁式误报。
+  const content = [
+    'test("x", () => { assert.equal(1, 1) })',
+    'process.exit(failed > 0 ? 1 : 0)',
+  ].join('\n')
+  const result = weakensTest('', content)
+  assert.equal(result.weakened, false, `exit 不该算跳过：${result.why}`)
+})
+
+test('削弱测试：真的 xit( / xdescribe( 仍被识别', () => {
+  // 放宽 `xit(` 不能把真的 mocha 跳过写法一起放过。
+  assert.equal(weakensTest('it("a", () => {})', 'xit("a", () => {})').weakened, true)
+  assert.equal(weakensTest('describe("a", () => {})', 'xdescribe("a", () => {})').weakened, true)
+})
+
+test('削弱测试：断言期望值为 false 不算恒真', () => {
+  // `assert.equal(x, false)` 是「断言 x 等于 false」，最严格的断言之一；
+  // 真正的恒真是 `assert.ok(true)` 或 `assert.ok(x, false)`（第二参数是失败消息）。
+  const before = 'assert.equal(isReadOnly("a"), true)'
+  const after = 'assert.equal(isReadOnly("a"), true)\nassert.equal(isReadOnly("b"), false)'
+  assert.equal(weakensTest(before, after).weakened, false)
+  assert.equal(weakensTest('assert.ok(x)', 'assert.ok(x, false)').weakened, true)
+})
+
 /* ------------------------------------------- 文件分类 */
 
 test('isTestFile 识别测试文件命名', () => {

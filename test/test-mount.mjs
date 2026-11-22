@@ -215,7 +215,37 @@ await test('guard 对写工具也不抛异常', async () => {
   }
 })
 
-/* ------------------------------------------------------- 4. config shapes */
+/* ------------------------------------------------- 4. guards fail open */
+
+await test('guard 内部抛错时放行本次调用（fail-open）', async () => {
+  // A guard sits in front of *every* tool execution, so one throwing gate kills
+  // the whole tool channel — including `read`, which is the tool you would need
+  // to diagnose it. A gate may veto a call or say nothing; it may never escalate
+  // a bug in itself into a session that cannot act at all.
+  const { ctx, guards } = fakeCtx({ initiator: { id: 'agent-z' } })
+  plugin.apply(ctx, {})
+  assert.ok(guards.length > 0, '没有注册任何 guard')
+
+  // Make every guard explode by removing the agent's session and any object the
+  // guards reach through. Whatever the cause, the wrappers must absorb it.
+  const hostile = {
+    name: 'read',
+    callId: 'call-boom',
+    arguments: { file_path: 'D:\\work\\example.txt' },
+    get agent() {
+      throw new Error('boom: agent 已失效')
+    },
+  }
+  for (let i = 0; i < guards.length; i += 1) {
+    let result
+    assert.doesNotThrow(() => {
+      result = guards[i](hostile)
+    }, `第 ${i + 1} 个 guard 把异常泄漏给了调用方`)
+    assert.equal(result, undefined, `第 ${i + 1} 个 guard 抛错后应放行（返回 undefined）`)
+  }
+})
+
+/* ------------------------------------------------------- 5. config shapes */
 
 await test('所有门禁关闭时也能挂载', async () => {
   const { ctx, registered } = fakeCtx()

@@ -85,7 +85,7 @@ async function main() {
   fs.writeFileSync(path.join(storeDir, 'projects', projB, 'boards', 'agent', 'msg-002.json'), JSON.stringify(msgB, null, 2))
 
   // Now load index.js with a mock ctx
-  const { apply } = await import('../index.js')
+  const { apply } = await import('../lib/index.js')
 
   // Build a mock ctx that satisfies what index.js needs
   const events = new Map()
@@ -202,7 +202,7 @@ async function main() {
   // Verify kb.js still passes its tests
   const { execSync } = await import('node:child_process')
   try {
-    const kbResult = execSync('node test-kb.js', { cwd: pluginDir, encoding: 'utf8', timeout: 10000 })
+    const kbResult = execSync('node test/test-kb.js', { cwd: pluginDir, encoding: 'utf8', timeout: 10000 })
     const kbMatch = kbResult.match(/(\d+) passed, (\d+) failed/)
     if (kbMatch) {
       ok(`kb.js 回归测试通过（${kbMatch[1]} passed, ${kbMatch[2]} failed）`, kbMatch[2] === '0')
@@ -215,7 +215,7 @@ async function main() {
 
   // Verify store tests
   try {
-    const storeResult = execSync('node test-store.mjs', { cwd: pluginDir, encoding: 'utf8', timeout: 10000 })
+    const storeResult = execSync('node test/test-store.mjs', { cwd: pluginDir, encoding: 'utf8', timeout: 10000 })
     const storeMatch = storeResult.match(/(\d+) passed, (\d+) failed/)
     if (storeMatch) {
       ok(`store.js 回归测试通过（${storeMatch[1]} passed, ${storeMatch[2]} failed）`, storeMatch[2] === '0')
@@ -229,7 +229,7 @@ async function main() {
   // The message-selection rules: these were wrong twice in a live prompt, so they
   // get their own suite. Folding it in here means a broken rule fails this smoke.
   try {
-    const busResult = execSync('node test-session-bus.mjs', { cwd: pluginDir, encoding: 'utf8', timeout: 10000 })
+    const busResult = execSync('node test/test-session-bus.mjs', { cwd: pluginDir, encoding: 'utf8', timeout: 10000 })
     const busMatch = busResult.match(/(\d+) passed, (\d+) failed/)
     if (busMatch) {
       ok(`跨会话选择规则通过（${busMatch[1]} passed, ${busMatch[2]} failed）`, busMatch[2] === '0')
