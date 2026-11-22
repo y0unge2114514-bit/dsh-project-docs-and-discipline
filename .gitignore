@@ -1,0 +1,30 @@
+# 依赖
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+
+# 本机快照与临时产物
+.integrity-manifest.json
+*.bak-*
+*.tmp
+*.log
+
+# 本机文档库（绝不进仓库：README 会说明它由 storeDir 指定）
+.dsh-docs/
+project-docs/
+
+# 打包产物
+*.tgz
+*.tar.gz
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 调试轨迹（插件会在排障时写出）
+.*-trace.jsonl
+.breaker-trace.jsonl
+.doc-need-trace.jsonl
+.proof-trace.jsonl

@@ -1,0 +1,60 @@
+{
+  "name": "@local/dsh-project-docs",
+  "version": "0.3.0",
+  "private": false,
+  "type": "module",
+  "description": "多 Agent 协作文档中心与可验证的编程纪律插件：项目文档 / 合作文档 / 凭证区 / 双留言板 / 公共工具库 / 统一信息库，并在写文件、收尾、等待、提问、读文档等环节施加代码级门禁。",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "agent",
+    "multi-agent",
+    "project-docs",
+    "discipline"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "scripts",
+    "test",
+    "docs",
+    "locale",
+    "cordis.patch.yml",
+    "icon.svg",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node test/test-kb.js && node test/test-store.mjs && node test/test-session-bus.mjs && node test/test-handoff-brief.mjs && node test/test-doc-need.mjs && node test/test-workflow.mjs && node test/test-estimate.mjs && node test/test-sleep.mjs && node test/test-ask.mjs && node test/test-privacy-scan.mjs && node test/test-skill-gate.mjs",
+    "smoke": "node scripts/kb-smoke.mjs && node scripts/kb-mount-smoke.mjs && node scripts/session-smoke.mjs",
+    "snapshot": "node scripts/verify-integrity.mjs snapshot",
+    "verify": "node scripts/verify-integrity.mjs verify",
+    "privacy": "node scripts/privacy-scan.mjs",
+    "check": "npm run privacy && npm test",
+    "prepublishOnly": "npm run privacy && npm test"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  }
+}

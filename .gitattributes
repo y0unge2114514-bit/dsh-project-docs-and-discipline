@@ -1,0 +1,15 @@
+# Normalise line endings so Windows and macOS checkouts agree byte-for-byte.
+# Without this, every file gets a "LF will be replaced by CRLF" warning and a
+# macOS contributor sees a whole-repo diff on first clone.
+* text=auto eol=lf
+
+# Windows-only launchers keep CRLF.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary assets should never be touched.
+*.png binary
+*.jpg binary
+*.zip binary
+*.tgz binary

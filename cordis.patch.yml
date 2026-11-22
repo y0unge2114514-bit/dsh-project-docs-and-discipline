@@ -1,0 +1,47 @@
+- insert:
+    - id: project-docs
+      name: '@local/dsh-project-docs'
+      config:
+        # 留空则回退到 <DSH_HOME>/project-docs；换位置只改这一行。
+        # 不要在这里写死绝对路径：这个仓库是公开的。
+        storeDir: ''
+        disciplineGuard: true
+        # early: 拦截本会话第一次工具调用（默认）；write: 只拦截第一次 write/edit
+        disciplineGuardMode: early
+        # 项目已有他人活跃认领时，拒绝本会话的写文件/跑命令；没有认领时首次提示一次
+        claimGuard: true
+        # 文档监督：定期提醒复查/回写/归档项目文档，并要求动手前先读项目文档
+        supervisor: true
+        # 多久（分钟）没碰文档就提醒复查一次
+        supervisorReviewMinutes: 25
+        # 多久（分钟）提醒整理一次过时文档（归档/删除）
+        supervisorCurationMinutes: 120
+        # 同一项目有多个 agent 认领时，多久（分钟）提醒一次同步进度/下一步（claim 不是分地盘）
+        supervisorCollabMinutes: 20
+        # 项目文档没读过就写文件/跑命令时直接拦截，读一份 PROJECT.md 或 COLLAB.md 即放行
+        requireDocsBeforeWrite: true
+        # 效率纪律：调用里自带超过下值的超时会被拒绝一次（并发/换做法/才等待）
+        timeoutGuard: true
+        timeoutWarnAboveSeconds: 120
+        # 单次调用超过这么多秒就提醒「上一次花了 N 分钟，下次先并发或换更省的做法」
+        slowCallWarnSeconds: 20
+        # 链路纪律：改到部署源/打包产物/缓存层时，在同一次工具结果里回一句「这不自动生效」
+        linkGuard: true
+        # 死循环断路器：同一失败连续 2 次进入 Trace Mode，禁止写补丁直到 trace_report
+        circuitBreaker: true
+        # 诊断：把每次 tools/result 的返回形状写进 .breaker-trace.jsonl（排障时临时改 true，完后关掉）
+        breakerDebug: false
+        # 证据门禁：本轮没有 verify_deliverable 证据时，不许用「已完成/已修复」收尾
+        # 注意：只能保证主会话的收尾；子代理收尾时刻框架会忽略 steer，见 README「已知限制」
+        proofGate: true
+        # 开发工作流（借鉴 obra/superpowers）：常驻系统提示，把「想清楚→规划→隔离→
+        # 测试先行→审查→完成前验证→收尾」作为强制流程注入每次模型请求，天然免疫压缩
+        workflowPrompt: true
+        # 计划门禁：本会话没产出过计划（write_doc/append_doc）就改动代码时，提醒一次先规划
+        # 注册在 disciplineGuard 之后，首次 write/edit 由 discipline 提醒占位，下一次改动才触发
+        planGate: true
+
+        # 从 deepseek-stack 的 29 个 skill 中提炼、可被代码检查的规则（2026-11-22）
+        # 覆盖：验证失败 3 次必须停、同错 2 次必须先测假设、禁止削弱测试、
+        # 跨 2 个文件改动提示先给计划。取舍理由见 docs/UPSTREAM-SKILLS.md
+        skillGate: true
