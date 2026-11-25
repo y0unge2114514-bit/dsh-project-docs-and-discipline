@@ -242,7 +242,7 @@ export function buildPlan({ version, tag, remote = DEFAULT_REMOTE, root = PLUGIN
       id: 'create-release',
       title: `创建 GitHub Release ${tag}`,
       command: 'curl',
-      args: ['--ssl-no-revoke', '-X', 'POST', `${API_BASE}/releases`],
+      args: ['--ssl-no-revoke', '--fail-with-body', '-X', 'POST', `${API_BASE}/releases`],
       cwd: root,
       detail: `正文取自 docs/RELEASE-${version}.md，body 必须是字符串`,
     },
@@ -250,7 +250,7 @@ export function buildPlan({ version, tag, remote = DEFAULT_REMOTE, root = PLUGIN
       id: 'verify-release',
       title: `回读 ${tag} 确认 Release 真的存在`,
       command: 'curl',
-      args: ['--ssl-no-revoke', `${API_BASE}/releases/tags/${tag}`],
+      args: ['--ssl-no-revoke', '--fail-with-body', `${API_BASE}/releases/tags/${tag}`],
       cwd: root,
       detail: '接口返回 201 不等于发布成功，必须读回来核对',
     },
@@ -378,6 +378,7 @@ export async function release(options = {}) {
       'curl',
       [
         '--ssl-no-revoke',
+        '--fail-with-body',
         '--silent',
         '--show-error',
         '-X',
@@ -402,17 +403,47 @@ export async function release(options = {}) {
     return { ok: false, dryRun: false, error: 'release_create_failed', version: resolvedVersion, tag, steps: steps.map(redactStep) }
   }
   const created = parseJsonSafe(createResult.stdout)
+  if (typeof created?.id !== 'number') {
+    // curl 退出码 0 不代表接口成功：代理返回 500 且响应体为空时就是这种情形。
+    return {
+      ok: false,
+      dryRun: false,
+      error: 'release_create_failed',
+      version: resolvedVersion,
+      tag,
+      hint: `建 Release 的响应里没有 id，接口没成功。响应片段：${excerpt(createResult.stdout)}`,
+      steps: steps.map(redactStep),
+    }
+  }
 
   // 4) 回读核对
   const verifyResult = await runFn(
     'curl',
-    ['--ssl-no-revoke', '--silent', '--show-error', '-H', `Authorization: Bearer ${pat}`, '-H', 'Accept: application/vnd.github+json', `${API_BASE}/releases/tags/${tag}`],
+    [
+      '--ssl-no-revoke',
+      '--fail-with-body',
+      '--silent',
+      '--show-error',
+      '-H',
+      `Authorization: Bearer ${pat}`,
+      '-H',
+      'Accept: application/vnd.github+json',
+      `${API_BASE}/releases/tags/${tag}`,
+    ],
     { cwd: root },
   )
   steps.push(recordStep('verify-release', verifyResult))
   const verified = parseJsonSafe(verifyResult.stdout)
-  if (!verifyResult.ok) {
-    return { ok: false, dryRun: false, error: 'release_verify_failed', version: resolvedVersion, tag, steps: steps.map(redactStep) }
+  if (!verifyResult.ok || typeof verified?.html_url !== 'string') {
+    return {
+      ok: false,
+      dryRun: false,
+      error: 'release_verify_failed',
+      version: resolvedVersion,
+      tag,
+      hint: `回读没有拿到 html_url，无法证明 Release 存在。响应片段：${excerpt(verifyResult.stdout)}`,
+      steps: steps.map(redactStep),
+    }
   }
 
   return {
@@ -452,4 +483,12 @@ function parseJsonSafe(text) {
   } catch {
     return null
   }
+}
+
+/** 取一段响应片段放进错误信息；空响应明说「空」，别让调用者以为是没报错。 */
+function excerpt(text, limit = 200) {
+  if (typeof text !== 'string') return '(无输出)'
+  const trimmed = text.trim()
+  if (trimmed.length === 0) return '(空响应体)'
+  return trimmed.length > limit ? `${trimmed.slice(0, limit)}…` : trimmed
 }

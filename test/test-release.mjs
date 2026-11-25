@@ -280,6 +280,10 @@ await test('真推时返回的日志里不出现 token 原文', async () => {
     runFn: async (command, args) => {
       if (args.includes('status')) return { ok: true, code: 0, stdout: '', stderr: '' }
       if (args.includes('ls-remote')) return { ok: true, code: 0, stdout: '', stderr: '' }
+      if (args.includes('POST')) return { ok: true, code: 0, stdout: '{"id":1}', stderr: '' }
+      if (args.some((a) => String(a).includes('/releases/tags/'))) {
+        return { ok: true, code: 0, stdout: '{"html_url":"https://example.com/r"}', stderr: '' }
+      }
       return { ok: true, code: 0, stdout: 'done', stderr: '' }
     },
   })
@@ -311,8 +315,59 @@ await test('某一步失败时立即停止，不继续往下推', async () => {
   assert.match(String(result.error), /push|failed/i)
 })
 
-/* ------------------------------------------------ CLI 外壳（真起进程） */
+await test('curl 退出码为 0 但响应体报错时，不能当成发布成功', async () => {
+  const result = await release({
+    root: '/repo',
+    dryRun: false,
+    yes: true,
+    version: '0.3.2',
+    pat: FAKE_TOKEN,
+    readFileFn: () => '# v0.3.2',
+    runFn: async (command, args) => {
+      if (args.includes('status')) return { ok: true, code: 0, stdout: '', stderr: '' }
+      if (args.includes('ls-remote')) return { ok: true, code: 0, stdout: '', stderr: '' }
+      // 真实事故：api.github.com 返回 500 且响应体为空，curl -s 退出码仍是 0
+      if (args.includes('POST')) return { ok: true, code: 0, stdout: '', stderr: '' }
+      return { ok: true, code: 0, stdout: '', stderr: '' }
+    },
+  })
+  assert.equal(result.ok, false, '空响应体被当成了成功')
+  assert.equal(result.error, 'release_create_failed')
+})
 
+await test('回读拿不到 html_url 时不算发布成功', async () => {
+  const result = await release({
+    root: '/repo',
+    dryRun: false,
+    yes: true,
+    version: '0.3.2',
+    pat: FAKE_TOKEN,
+    readFileFn: () => '# v0.3.2',
+    runFn: async (command, args) => {
+      if (args.includes('status')) return { ok: true, code: 0, stdout: '', stderr: '' }
+      if (args.includes('ls-remote')) return { ok: true, code: 0, stdout: '', stderr: '' }
+      if (args.includes('POST')) return { ok: true, code: 0, stdout: '{"id":99}', stderr: '' }
+      if (args.some((a) => String(a).includes('/releases/tags/'))) {
+        // 真实事故：Release 没建成时这里返回 404 + {"message":"Not Found"}
+        return { ok: true, code: 0, stdout: '{"message":"Not Found"}', stderr: '' }
+      }
+      return { ok: true, code: 0, stdout: '', stderr: '' }
+    },
+  })
+  assert.equal(result.ok, false, '回读没有 html_url 却报成功')
+  assert.equal(result.error, 'release_verify_failed')
+})
+
+await test('curl 要带 --fail-with-body，让 HTTP 错误变成非零退出码', () => {
+  const plan = buildPlan({ version: '0.3.2', tag: TAG, remote: FAKE_REMOTE })
+  const curlSteps = plan.filter((step) => step.command === 'curl')
+  assert.equal(curlSteps.length, 2, 'curl 步骤数量不对')
+  for (const step of curlSteps) {
+    assert.ok(step.args.includes('--fail-with-body'), `${step.id} 缺 --fail-with-body`)
+  }
+})
+
+/* ------------------------------------------------ CLI 外壳（真起进程） */
 await test('CLI --help 打印用法并正常退出', async () => {
   const { stdout } = await execFileAsync(process.execPath, [CLI, '--help'], { cwd: REPO_ROOT })
   assert.match(stdout, /用法/)

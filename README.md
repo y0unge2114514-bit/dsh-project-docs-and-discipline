@@ -123,7 +123,7 @@ kb/
 ## 自检工具
 
 ```bash
-npm test                  # 17 套测试，329 项
+npm test                  # 17 套测试，332 项
 npm run privacy           # 隐私扫描器
 npm run check             # privacy + test（prepublishOnly 也会跑）
 
@@ -142,6 +142,8 @@ npm run release                                                  # 发布：默�
 `npm run release` 把「推 main → 推 tag → 建 GitHub Release → 回读核对」固化成四步，默认 **dry-run**，只打印计划；加 `--yes` 才真跑。令牌只从环境变量 `GITHUB_TOKEN` 读（不接命令行参数，免得进 shell 历史），需要 fine-grained PAT 的 Contents: Read and write。
 
 三道前置闸门按顺序拦：没有 `--yes` 拒绝；没有令牌拒绝（不静默退化成匿名推送）；工作区脏拒绝；远端已有同名 tag 拒绝覆盖。任一步失败立即停止，不会带着半个发布继续往下走。输出里所有令牌都过 `redact`，有专门用例断言结果中不含原文。
+
+**curl 一律带 `--fail-with-body`**：`curl -s` 在 HTTP 404/500 时退出码仍是 0，只看退出码会把失败读成成功。建 Release 还要求响应里有数字 `id`，回读要求响应里有字符串 `html_url`——接口返回 201 不等于发布成功，必须读回来核对。
 
 Release 正文用 `fs.readFileSync` 读 Markdown 后拼 JSON，**不要用 PowerShell `Get-Content -Raw` + `ConvertTo-Json`**：那会把 Markdown 包成带 `PSPath`/`PSProvider` 的对象，GitHub 直接返回 422 `For 'properties/body', {...} is not a string`，顺带把中文按 GBK 读成乱码。`buildReleasePayload` 现在对非字符串 body 当场报错。
 
@@ -196,7 +198,7 @@ lib/
   bundle-integrity.js  打包完整性
   claims-guard.js      认领归属判定
 scripts/               自检与发布脚本（隐私扫描 / 完整性 / 一致性体检 / 冒烟 / release）
-test/                  17 套测试，329 项
+test/                  17 套测试，332 项
 docs/                  实现记录与详细纪律
 ```
 
