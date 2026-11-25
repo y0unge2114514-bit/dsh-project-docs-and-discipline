@@ -287,6 +287,8 @@ const CATEGORIES = [
         'anthropic.com', 'electronjs.org', 'cordis.top',
       ]
       if (KNOWN.includes(lower)) return true
+      // GitHub 的子域（raw / objects / gist / api …）都是公开基础设施，不是私有主机。
+      if (/(?:^|\.)githubusercontent\.com$|^api\.github\.com$/.test(lower)) return true
       // Two-label domains ending in a common TLD that are obviously generic
       // documentation hosts (`api.example`, `foo.local`).
       if (/(?:^|\.)local$/.test(lower)) return true

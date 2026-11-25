@@ -109,10 +109,20 @@ kb/
 
 完整纪律见 [DISCIPLINE.md](docs/DISCIPLINE.md)。
 
+## 版本与更新
+
+侧边栏标题右侧有一个版本徽章。点它检查是否有新版本；有新版本时徽章变橙，并出现「拉取新版」按钮。
+
+- `GET /project-docs/api/version` 返回本地版本、远端版本、是否落后、当前 git HEAD。
+- `POST /project-docs/api/update`（必须 `confirm: true`）执行 `git fetch --depth 1` + `git merge --ff-only`。工作区有未提交改动时直接拒绝（`dirty_worktree`）——那可能正是别人没来得及提交的修复；无法快进时也拒绝，**永不 force**。
+- 拉取成功后需要重启 DSH：插件在会话启动时加载，磁盘上的新代码不会进到正在运行的进程里。
+
+远端版本走 `raw.githubusercontent.com` 上的 `package.json`。若 `fetch` 因证书链失败（Node 只信任自己打包的根证书，不读系统证书库；装过 HTTPS 审计代理的机器上必然如此），会自动回退到一次系统 `curl --ssl-no-revoke` 请求——用系统的信任链再校验一遍，而不是关掉校验。返回结果里的 `via` 字段说明这次是 `fetch` 还是 `curl` 拿到的。
+
 ## 自检工具
 
 ```bash
-npm test                  # 9 套测试，203 项
+npm test                  # 14 套测试，262 项
 npm run privacy           # 隐私扫描器
 npm run check             # privacy + test（prepublishOnly 也会跑）
 

@@ -200,45 +200,33 @@ async function main() {
   ok('index.js 语法检查通过', true)
 
   // Verify kb.js still passes its tests
+  //
+  // 10 秒超时太紧：`npm run smoke` 里前面几套已经把磁盘和 CPU 打热，这台机器
+  // 又是 Windows + 杀软扫描，`test-store.mjs`（52 项，含并发写锁用例）偶尔会
+  // 刚好卡在超时线上，于是 catch 里报一条「执行失败」——单独跑又永远不复现。
+  // 给足余量，并把真实原因带进消息，免得下次看到 FAIL 还得重跑才知道为什么。
   const { execSync } = await import('node:child_process')
-  try {
-    const kbResult = execSync('node test/test-kb.js', { cwd: pluginDir, encoding: 'utf8', timeout: 10000 })
-    const kbMatch = kbResult.match(/(\d+) passed, (\d+) failed/)
-    if (kbMatch) {
-      ok(`kb.js 回归测试通过（${kbMatch[1]} passed, ${kbMatch[2]} failed）`, kbMatch[2] === '0')
-    } else {
-      ok('kb.js 回归测试有输出', kbResult.length > 0)
+  const CHILD_TIMEOUT_MS = 60_000
+  function runSuite(label, script) {
+    try {
+      const output = execSync(`node ${script}`, { cwd: pluginDir, encoding: 'utf8', timeout: CHILD_TIMEOUT_MS })
+      const match = output.match(/(\d+) passed, (\d+) failed/)
+      if (match) {
+        ok(`${label}（${match[1]} passed, ${match[2]} failed）`, match[2] === '0')
+      } else {
+        ok(`${label} 有输出`, output.length > 0)
+      }
+    } catch (error) {
+      const reason = error && error.message ? String(error.message).split('\n')[0] : String(error)
+      ok(`${label} 执行（${reason}）`, false)
     }
-  } catch (e) {
-    ok('kb.js 回归测试执行', false)
   }
 
-  // Verify store tests
-  try {
-    const storeResult = execSync('node test/test-store.mjs', { cwd: pluginDir, encoding: 'utf8', timeout: 10000 })
-    const storeMatch = storeResult.match(/(\d+) passed, (\d+) failed/)
-    if (storeMatch) {
-      ok(`store.js 回归测试通过（${storeMatch[1]} passed, ${storeMatch[2]} failed）`, storeMatch[2] === '0')
-    } else {
-      ok('store.js 回归测试有输出', storeResult.length > 0)
-    }
-  } catch (e) {
-    ok('store.js 回归测试执行', false)
-  }
-
+  runSuite('kb.js 回归测试通过', 'test/test-kb.js')
+  runSuite('store.js 回归测试通过', 'test/test-store.mjs')
   // The message-selection rules: these were wrong twice in a live prompt, so they
   // get their own suite. Folding it in here means a broken rule fails this smoke.
-  try {
-    const busResult = execSync('node test/test-session-bus.mjs', { cwd: pluginDir, encoding: 'utf8', timeout: 10000 })
-    const busMatch = busResult.match(/(\d+) passed, (\d+) failed/)
-    if (busMatch) {
-      ok(`跨会话选择规则通过（${busMatch[1]} passed, ${busMatch[2]} failed）`, busMatch[2] === '0')
-    } else {
-      ok('跨会话选择规则有输出', busResult.length > 0)
-    }
-  } catch (e) {
-    ok('跨会话选择规则执行', false)
-  }
+  runSuite('跨会话选择规则通过', 'test/test-session-bus.mjs')
 
   cleanup()
 

@@ -125,6 +125,20 @@ test('自建域名（无固定后缀表也需识别）', () => {
   assert.ok(reports('api.myservice.net', 'domain-private'))
 })
 
+test('GitHub 官方子域不算私有域名（版本检查要用 raw）', () => {
+  // 只白名单 `github.com` 会把插件自己拉版本的地址判成泄漏，逼着人加豁免。
+  for (const host of [
+    'https://raw.githubusercontent.com/o/r/main/package.json',
+    'objects.githubusercontent.com',
+    'gist.githubusercontent.com',
+    'api.github.com',
+  ]) {
+    assert.equal(reports(host, 'domain-private'), false, `${host} 被判成私有域名`)
+  }
+  // 但 GitHub 之外的自建域名仍要报。
+  assert.ok(reports('mycompany.com', 'domain-private'))
+})
+
 test('中文人名（拉丁正则曾漏掉）', () => {
   assert.ok(reports("author: '张三'", 'person-name-position'))
   assert.ok(reports("placeholder: '李四'", 'person-name-position'))

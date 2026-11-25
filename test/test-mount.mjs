@@ -272,6 +272,50 @@ await test('storeDir 配置被接受', async () => {
   assert.doesNotThrow(() => plugin.apply(ctx, { storeDir: 'D:\\work\\docs' }))
 })
 
+/* ------------------------------------------- 4b. version / update surface */
+
+await test('版本接口与更新接口都已挂在同一个 prefix 路由上', async () => {
+  // 路由是按前缀注册的（`{ kind: 'prefix', path: '/project-docs' }`），
+  // 不是逐条路径注册 —— 所以只能断言 prefix 存在，接口由真实请求验证。
+  const { ctx, routes } = fakeCtx()
+  plugin.apply(ctx, {})
+  const prefix = routes.find((route) => route.path === '/project-docs')
+  assert.ok(prefix, `未注册 /project-docs 路由；已注册：${routes.map((r) => r.path).join(', ')}`)
+  assert.equal(typeof prefix.handler, 'function', '/project-docs 路由缺少 handler')
+})
+
+await test('更新接口在没有 confirm 时拒绝执行', async () => {
+  // 拉取新版会动插件自己的源码，必须由用户显式确认，不能由页面加载或误点触发。
+  const { ctx, routes } = fakeCtx()
+  plugin.apply(ctx, {})
+  const prefix = routes.find((route) => route.path === '/project-docs')
+  const calls = []
+  const request = {
+    method: 'POST',
+    url: '/project-docs/api/update',
+    headers: { 'sec-fetch-site': 'same-origin', 'x-project-docs': '1' },
+    async *[Symbol.asyncIterator]() {
+      yield Buffer.from(JSON.stringify({ confirm: false }))
+    },
+  }
+  const response = {
+    statusCode: 0,
+    setHeader() {},
+    end(text) { calls.push({ status: this.statusCode, text }) },
+  }
+  await prefix.handler(request, response)
+  assert.equal(response.statusCode, 400, `没有 confirm 时应返回 400，实际 ${response.statusCode}`)
+  assert.match(String(calls[0]?.text ?? ''), /confirm_required/)
+})
+
+await test('客户端面板带有版本徽章与拉取按钮', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const text = await readFile(new URL('../lib/client.js', import.meta.url), 'utf8')
+  assert.match(text, /version\.badge/, '缺少版本徽章文案')
+  assert.match(text, /version\.update/, '缺少拉取新版按钮文案')
+  assert.match(text, /apiGet\('version'\)/, '面板没有调用版本接口')
+})
+
 /* --------------------------------------------------- 5. cleanup contract */
 
 await test('effect 都返回了可清理的函数或 undefined', async () => {
