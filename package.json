@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-project-docs",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": false,
   "type": "module",
   "description": "多 Agent 协作文档中心与可验证的编程纪律插件：项目文档 / 合作文档 / 凭证区 / 双留言板 / 公共工具库 / 统一信息库，并在写文件、收尾、等待、提问、读文档等环节施加代码级门禁。",
