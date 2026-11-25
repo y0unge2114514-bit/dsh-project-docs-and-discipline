@@ -37,12 +37,13 @@
     "README.md"
   ],
   "scripts": {
-    "test": "node test/test-kb.js && node test/test-store.mjs && node test/test-session-bus.mjs && node test/test-handoff-brief.mjs && node test/test-doc-need.mjs && node test/test-workflow.mjs && node test/test-estimate.mjs && node test/test-sleep.mjs && node test/test-ask.mjs && node test/test-privacy-scan.mjs && node test/test-skill-gate.mjs && node test/test-link-policy.mjs && node test/test-claims-guard.mjs && node test/test-self-update.mjs && node test/test-verify-wording.mjs && node test/test-mount.mjs",
+    "test": "node test/test-kb.js && node test/test-store.mjs && node test/test-session-bus.mjs && node test/test-handoff-brief.mjs && node test/test-doc-need.mjs && node test/test-workflow.mjs && node test/test-estimate.mjs && node test/test-sleep.mjs && node test/test-ask.mjs && node test/test-privacy-scan.mjs && node test/test-skill-gate.mjs && node test/test-link-policy.mjs && node test/test-claims-guard.mjs && node test/test-self-update.mjs && node test/test-verify-wording.mjs && node test/test-release.mjs && node test/test-mount.mjs",
     "smoke": "node scripts/kb-smoke.mjs && node scripts/kb-mount-smoke.mjs && node scripts/session-smoke.mjs",
     "snapshot": "node scripts/verify-integrity.mjs snapshot",
     "verify": "node scripts/verify-integrity.mjs verify",
     "privacy": "node scripts/privacy-scan.mjs",
     "check": "npm run privacy && npm test",
+    "release": "node scripts/release.mjs",
     "prepublishOnly": "npm run privacy && npm test"
   },
   "dsh": {

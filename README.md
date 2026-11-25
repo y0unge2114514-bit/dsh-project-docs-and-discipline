@@ -123,18 +123,27 @@ kb/
 ## 自检工具
 
 ```bash
-npm test                  # 16 套测试，302 项
+npm test                  # 17 套测试，329 项
 npm run privacy           # 隐私扫描器
 npm run check             # privacy + test（prepublishOnly 也会跑）
 
 node scripts/verify-integrity.mjs snapshot                       # 改前快照
 node scripts/verify-integrity.mjs verify --changed "a.js,b.js"   # 改后校验
 node scripts/kb-scan.mjs                                         # 跨项目一致性体检
+npm run release                                                  # 发布：默认只打印计划
 ```
 
 **隐私扫描器**覆盖 15 类：绝对路径、公网 IP、IPv6、host:port、私有域名、仓库 URL、邮箱、手机号、微信/QQ 号、私钥、API 令牌、JWT、SSH 公钥、数据库连接串、明文密码。每类都有正反两向回归测试——加白名单导致漏报会让测试失败，而不是依赖人工复查。
 
 **完整性校验器**针对批量编辑损坏：记录改前快照，改后检查「未声明改动 + 语法损坏」并指出行号。
+
+### 发布
+
+`npm run release` 把「推 main → 推 tag → 建 GitHub Release → 回读核对」固化成四步，默认 **dry-run**，只打印计划；加 `--yes` 才真跑。令牌只从环境变量 `GITHUB_TOKEN` 读（不接命令行参数，免得进 shell 历史），需要 fine-grained PAT 的 Contents: Read and write。
+
+三道前置闸门按顺序拦：没有 `--yes` 拒绝；没有令牌拒绝（不静默退化成匿名推送）；工作区脏拒绝；远端已有同名 tag 拒绝覆盖。任一步失败立即停止，不会带着半个发布继续往下走。输出里所有令牌都过 `redact`，有专门用例断言结果中不含原文。
+
+Release 正文用 `fs.readFileSync` 读 Markdown 后拼 JSON，**不要用 PowerShell `Get-Content -Raw` + `ConvertTo-Json`**：那会把 Markdown 包成带 `PSPath`/`PSProvider` 的对象，GitHub 直接返回 422 `For 'properties/body', {...} is not a string`，顺带把中文按 GBK 读成乱码。`buildReleasePayload` 现在对非字符串 body 当场报错。
 
 ## 配置
 
@@ -186,8 +195,8 @@ lib/
   workflow.js          开发工作流与计划门禁
   bundle-integrity.js  打包完整性
   claims-guard.js      认领归属判定
-scripts/               自检脚本（隐私扫描 / 完整性 / 一致性体检 / 冒烟）
-test/                  16 套测试，302 项
+scripts/               自检与发布脚本（隐私扫描 / 完整性 / 一致性体检 / 冒烟 / release）
+test/                  17 套测试，329 项
 docs/                  实现记录与详细纪律
 ```
 
