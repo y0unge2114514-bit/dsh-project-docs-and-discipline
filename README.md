@@ -163,25 +163,30 @@ node scripts/kb-scan.mjs                                         # 跨项目一�
 ## 目录
 
 ```
-index.js               Host 半：路由、工具注册、各类门禁
-store.js               文档库存储层（纯 Node，无 Cordis 依赖）
-kb.js                  统一信息库（版本控制 / 留痕 / 门禁）
-client.js              侧边栏面板
-session-bus.js         跨会话消息选择规则
-handoff-brief.js       接手摘要
-doc-need.js            「没读文档就问/断言」识别
-estimate-policy.js     按规模决定计划
-sleep-policy.js        长暂停拒绝
-ask-policy.js          提问形状检查
-timeout-policy.js      超时判定
-evidence-policy.js     交付证据三维度
-link-policy.js         部署链路检测
-circuit-breaker.js     失败指纹与跳闸
-workflow.js            开发工作流与计划门禁
-bundle-integrity.js    打包完整性
-claims-guard.js        认领归属判定
-scripts/               自检脚本（隐私 / 完整性 / 一致性）
-test-*.mjs             9 套测试
+package.json           入口 main 指向 lib/index.js
+cordis.patch.yml       插件清单（bundle 声明、侧边栏 slot）
+lib/
+  index.js             Host 半：路由、工具注册、各类门禁（最大的一块）
+  store.js             文档库存储层（纯 Node，无 Cordis 依赖）
+  kb.js                统一信息库（版本控制 / 留痕 / 门禁）
+  client.js            侧边栏面板（浏览器半）
+  self-update.js       版本检查与 fast-forward 拉取
+  session-bus.js       跨会话消息选择规则
+  handoff-brief.js     接手摘要
+  doc-need.js          「没读文档就问/断言」识别
+  estimate-policy.js   按规模决定计划
+  sleep-policy.js      长暂停拒绝
+  ask-policy.js        提问形状检查
+  timeout-policy.js    超时判定
+  evidence-policy.js   交付证据三维度
+  link-policy.js       部署链路检测、失败指纹、只读命令判定
+  circuit-breaker.js   失败指纹与跳闸
+  skill-gate.js        验证次数上限 / 不许削弱测试 / 跨文件先给计划
+  workflow.js          开发工作流与计划门禁
+  bundle-integrity.js  打包完整性
+  claims-guard.js      认领归属判定
+scripts/               自检脚本（隐私扫描 / 完整性 / 一致性体检 / 冒烟）
+test/                  14 套测试，262 项
 docs/                  实现记录与详细纪律
 ```
 
